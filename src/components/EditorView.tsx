@@ -397,7 +397,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="w-10 h-10 bg-white dark:bg-[#161b22] dark:border dark:border-[#21262d] rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-gray-200 soft-shadow transition-all duration-300 hover:-translate-y-0.5"
+            className="w-10 h-10 bg-white dark:bg-[#161b22] dark:border dark:border-[#21262d] rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-gray-200 soft-shadow transition-all duration-300 hover:scale-110 active:scale-90 hover:shadow-md hover:-translate-y-0.5"
             title="Back to home"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -412,35 +412,38 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
           </div>
         </div>
         
-        {/* Mobile / Tablet Segmented Tabs - Positioned absolutely below header on small screens */}
-        <div className={`flex md:hidden absolute left-1/2 -translate-x-1/2 top-[72px] z-40 bg-white/80 dark:bg-[#161b22]/80 backdrop-blur-md p-1 rounded-full soft-shadow-lg border border-gray-100 dark:border-[#21262d] transition-all duration-300 ${
+        {/* Mobile / Tablet Single Toggle Button - Context aware */}
+        <div className={`flex md:hidden absolute left-1/2 -translate-x-1/2 top-[72px] z-40 transition-all duration-300 ${
           isFullscreen ? 'opacity-0 pointer-events-none scale-95 translate-y-2' : 'opacity-100'
         }`}>
-          <button 
-            className={`px-5 py-1.5 rounded-full font-medium text-xs transition-all duration-300 flex items-center gap-1.5 ${activeTab === 'editor' ? 'bg-[#7485b6] text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-            onClick={() => setActiveTab('editor')}
-          >
-            <FileEdit className="w-3.5 h-3.5" /> Edit
-          </button>
-          <button 
-            className={`px-5 py-1.5 rounded-full font-medium text-xs transition-all duration-300 flex items-center gap-1.5 ${activeTab === 'preview' ? 'bg-white dark:bg-[#0d1117] text-gray-800 dark:text-gray-200 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-            onClick={() => setActiveTab('preview')}
-          >
-            <Eye className="w-3.5 h-3.5" /> Preview
-          </button>
+          {activeTab === 'editor' ? (
+            <button 
+              className="bg-white dark:bg-[#161b22] text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-[#30363d] px-6 py-2 rounded-full font-semibold text-xs soft-shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 hover:-translate-y-0.5"
+              onClick={() => setActiveTab('preview')}
+            >
+              <Eye className="w-4 h-4 text-[#7485b6]" /> Preview Mode
+            </button>
+          ) : (
+            <button 
+              className="bg-white dark:bg-[#161b22] text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-[#30363d] px-6 py-2 rounded-full font-semibold text-xs soft-shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 hover:-translate-y-0.5"
+              onClick={() => setActiveTab('editor')}
+            >
+              <FileEdit className="w-4 h-4 text-[#7485b6]" /> Editor Mode
+            </button>
+          )}
         </div>
 
         {/* Layout controls on desktop */}
         <div className="hidden md:flex items-center bg-white/60 dark:bg-[#161b22]/60 p-1 rounded-full soft-shadow-sm border border-gray-100 dark:border-[#21262d]">
           <button 
             onClick={() => setLayout('split')}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 ${layout === 'split' ? 'bg-[#7485b6] text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 hover:scale-105 active:scale-95 ${layout === 'split' ? 'bg-[#7485b6] text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             <Layout className="w-3.5 h-3.5" /> Split
           </button>
           <button 
             onClick={() => setLayout('preview')}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 ${layout === 'preview' ? 'bg-[#7485b6] text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 hover:scale-105 active:scale-95 ${layout === 'preview' ? 'bg-[#7485b6] text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             <Eye className="w-3.5 h-3.5" /> Preview
           </button>
@@ -449,7 +452,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
         <div className="flex items-center gap-3 sm:gap-4">
           <button
             onClick={onToggleTheme}
-            className="w-10 h-10 bg-white dark:bg-[#161b22] dark:border dark:border-[#21262d] rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-gray-200 soft-shadow transition-all duration-300 hover:-translate-y-0.5"
+            className="w-10 h-10 bg-white dark:bg-[#161b22] dark:border dark:border-[#21262d] rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-gray-200 soft-shadow transition-all duration-300 hover:scale-110 active:scale-90 hover:shadow-md hover:-translate-y-0.5"
             title="Toggle Dark Mode"
           >
             {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -458,7 +461,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
           {/* Mobile Download Button */}
           <button
             onClick={() => setShowDownloadModal(true)}
-            className="sm:hidden w-10 h-10 bg-white dark:bg-[#161b22] dark:border dark:border-[#21262d] rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-gray-200 soft-shadow transition-all duration-300"
+            className="sm:hidden w-10 h-10 bg-white dark:bg-[#161b22] dark:border dark:border-[#21262d] rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-gray-200 soft-shadow transition-all duration-300 hover:scale-110 active:scale-90 hover:shadow-md"
           >
             <Download className="w-4 h-4" />
           </button>
@@ -475,7 +478,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
              <span className="text-gray-400 text-xs sm:text-sm font-medium pr-2">.md</span>
              <button 
                onClick={handleDownload}
-               className="flex items-center gap-1.5 bg-[#7485b6] text-white px-3 sm:px-4 py-1 rounded-full text-sm font-medium transition-all duration-300 hover:-translate-y-0.5"
+               className="flex items-center gap-1.5 bg-[#7485b6] text-white px-3 sm:px-4 py-1 rounded-full text-sm font-medium transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-md hover:-translate-y-0.5"
              >
                <Download className="w-3.5 h-3.5" />
                <span className="hidden sm:inline">Save</span>
@@ -575,7 +578,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
               {/* Import button */}
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors px-2.5 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-all duration-300 px-2.5 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-105 active:scale-95"
                 title="Import .md or .txt file"
               >
                 <Upload className="w-3.5 h-3.5" />
@@ -587,13 +590,14 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
                 onChange={handleFileImport} 
                 accept=".md,.txt" 
                 className="hidden" 
+                
               />
               
               <div className="w-[1px] h-3 bg-gray-200 dark:bg-[#21262d]"></div>
               
               <button
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                className={`flex items-center gap-1.5 text-xs transition-colors px-2.5 py-1.5 rounded-full ${
+                className={`flex items-center gap-1.5 text-xs transition-all duration-300 px-2.5 py-1.5 rounded-full hover:scale-105 active:scale-95 ${
                   isFullscreen 
                     ? 'bg-[#7485b6]/15 text-[#7485b6] dark:bg-[#7485b6]/30 dark:text-[#a5d6ff] font-medium' 
                     : 'text-gray-500 dark:text-gray-400 hover:text-[#7485b6] hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -609,14 +613,14 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
           <div className="px-4 md:px-6 py-2 border-b border-gray-100 dark:border-[#21262d] bg-[#fbfbfa]/60 dark:bg-[#161b22]/60 flex items-center gap-1 overflow-x-auto flex-shrink-0 scrollbar-none">
             <button
               onClick={() => insertFormatting('bold')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 flex items-center justify-center"
+              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
               title="Bold"
             >
               <Bold className="w-4 h-4" />
             </button>
             <button
               onClick={() => insertFormatting('italic')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 flex items-center justify-center"
+              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
               title="Italic"
             >
               <Italic className="w-4 h-4" />
@@ -624,21 +628,21 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
             <div className="w-[1px] h-4 bg-gray-200 dark:bg-[#21262d] mx-1"></div>
             <button
               onClick={() => insertFormatting('heading')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 flex items-center justify-center"
+              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
               title="Heading"
             >
               <Heading className="w-4 h-4" />
             </button>
             <button
               onClick={() => insertFormatting('quote')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 flex items-center justify-center"
+              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
               title="Blockquote"
             >
               <Quote className="w-4 h-4" />
             </button>
             <button
               onClick={() => insertFormatting('code')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 flex items-center justify-center"
+              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
               title="Code Block"
             >
               <Code className="w-4 h-4" />
@@ -646,21 +650,21 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
             <div className="w-[1px] h-4 bg-gray-200 dark:bg-[#21262d] mx-1"></div>
             <button
               onClick={() => insertFormatting('link')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 flex items-center justify-center"
+              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
               title="Link"
             >
               <Link className="w-4 h-4" />
             </button>
             <button
               onClick={() => insertFormatting('bullet')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 flex items-center justify-center"
+              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
               title="Bullet List"
             >
               <List className="w-4 h-4" />
             </button>
             <button
               onClick={() => insertFormatting('number')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 flex items-center justify-center"
+              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
               title="Numbered List"
             >
               <ListOrdered className="w-4 h-4" />
