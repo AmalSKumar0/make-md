@@ -7,9 +7,11 @@ import { useState, useEffect, useMemo } from 'react';
 import Landing from './components/Landing';
 import EditorView from './components/EditorView';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { useSmoothScroll } from './hooks/useSmoothScroll';
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
+  useSmoothScroll(true);
   const [isDarkMode, setIsDarkMode] = useLocalStorage<boolean>('makemd_dark_mode', false);
   
   // Loading Screen States
@@ -25,6 +27,7 @@ export default function App() {
     if (progress < 100) return 'Finalizing editor workspace...';
     return 'Ready!';
   }, [progress]);
+
 
   useEffect(() => {
     // Router popstate listener
@@ -93,46 +96,23 @@ export default function App() {
             fadeLoader ? 'opacity-0 pointer-events-none scale-105' : 'opacity-100'
           }`}
         >
-          {/* Glowing mesh background radial panels */}
-          <div className="absolute top-1/4 left-1/4 w-80 h-80 rounded-full bg-pink-400/10 dark:bg-pink-900/5 blur-[100px] animate-pulse-slow pointer-events-none"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-400/10 dark:bg-indigo-900/5 blur-[120px] animate-pulse-slow-reverse pointer-events-none"></div>
-
           <div className="flex flex-col items-center max-w-xs w-full px-6 relative z-10">
-            {/* Logo Mark with soft backglow */}
-            <div className="relative mb-6">
-              <div className="absolute inset-0 bg-[#7485b6]/25 dark:bg-[#7485b6]/10 rounded-[22px] blur-xl scale-125 animate-pulse"></div>
-              <div className="relative w-16 h-16 bg-white dark:bg-[#161b22] border border-gray-200/50 dark:border-[#30363d]/50 rounded-[22px] flex items-center justify-center soft-shadow-lg transition-transform duration-300 hover:scale-105">
-                <svg className="w-8 h-8 text-[#7485b6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-            </div>
-            
-            <h2 className="font-serif text-3xl font-semibold tracking-tight text-[#111] dark:text-white mb-2">
-              Make.md
+            <h2 className="font-serif text-2xl font-semibold tracking-tight text-[#111] dark:text-white mb-6">
+              make.amalskumar.dev
             </h2>
-            <p className="text-gray-400 dark:text-gray-500 text-[10px] tracking-wider uppercase mb-8 font-semibold">
-              Elegant Markdown Editor
-            </p>
             
-            {/* Progress indicator with live percentage and status description */}
-            <div className="w-48 flex flex-col items-center">
-              <div className="w-full h-[4px] bg-gray-200 dark:bg-[#30363d] rounded-full overflow-hidden relative shadow-inner">
-                <div 
-                  className="h-full bg-[#7485b6] rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(116,133,182,0.6)]"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              
-              <div className="w-full flex justify-between items-center mt-2.5 px-0.5">
-                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium tracking-wide">
-                  {statusMessage}
-                </span>
-                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 font-mono tracking-tight">
-                  {progress}%
-                </span>
-              </div>
+            {/* Sleek, minimal 2px progress bar */}
+            <div className="w-32 h-[2px] bg-gray-200 dark:bg-[#30363d] rounded-full overflow-hidden relative">
+              <div 
+                className="h-full bg-[#7485b6] rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              />
             </div>
+
+            {/* Dynamic status message */}
+            <p className="mt-3 text-[10px] uppercase tracking-wider font-semibold text-gray-400 dark:text-gray-500 text-center">
+              {statusMessage}
+            </p>
           </div>
         </div>
       )}
