@@ -244,16 +244,12 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
   useElementSmoothScroll(previewScrollRef, true);
 
   // Advanced feature states
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'outline' | 'cheatsheet'>('outline');
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [isTypewriterMode, setIsTypewriterMode] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [copiedExport, setCopiedExport] = useState(false);
-
-  useEffect(() => {
-    setIsSidebarOpen(window.innerWidth > 1024);
-  }, []);
 
   // 1. Parse Outline headings in real-time
   const headers = useMemo(() => {
