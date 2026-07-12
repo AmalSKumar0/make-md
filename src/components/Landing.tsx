@@ -13,6 +13,34 @@ export default function Landing({ onStart, isDarkMode, onToggleTheme }: LandingP
       {/* Background Grid */}
       <div className="absolute inset-0 bg-grid-soft dark:opacity-10 pointer-events-none mt-[40vh]" style={{ maskImage: 'linear-gradient(to bottom, transparent, black)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black)' }}></div>
 
+      {/* Floating illustrations in the background */}
+      {/* Star SVG on left */}
+      <svg className="hidden md:block absolute left-8 lg:left-16 top-24 w-12 h-12 text-yellow-500/20 dark:text-yellow-400/10 animate-float-svg pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2l2.4 7.4h7.6l-6 4.6 2.3 7.4-6.3-4.8-6.3 4.8 2.3-7.4-6-4.6h7.6z"/>
+      </svg>
+
+      {/* Document SVG on right top */}
+      <svg className="hidden md:block absolute right-10 lg:right-24 top-28 w-14 h-14 text-indigo-500/20 dark:text-indigo-400/10 animate-float-reverse-svg animation-delay-200 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      </svg>
+
+      {/* Paper Airplane SVG on left mid-lower */}
+      <svg className="hidden md:block absolute left-12 lg:left-24 bottom-[38%] w-14 h-14 text-pink-500/20 dark:text-pink-400/10 animate-float-svg animation-delay-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+      </svg>
+
+      {/* Rainbow SVG on right mid-lower */}
+      <svg className="hidden md:block absolute right-12 lg:right-28 bottom-[28%] w-24 h-24 text-teal-500/20 dark:text-teal-400/10 animate-float-reverse-svg animation-delay-300 pointer-events-none" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round">
+        <path d="M 10 90 A 40 40 0 0 1 90 90" />
+        <path d="M 26 90 A 24 24 0 0 1 74 90" />
+        <path d="M 42 90 A 8 8 0 0 1 58 90" />
+      </svg>
+
+      {/* Sparkle/Magic Star SVG on left center */}
+      <svg className="hidden md:block absolute left-[18%] top-[48%] w-8 h-8 text-yellow-500/30 dark:text-yellow-400/15 animate-pulse pointer-events-none" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M9.813 15.904L9 21L8.188 15.904L3 15L8.188 14.096L9 9L9.813 14.096L15 15L9.813 15.904Z" />
+      </svg>
+
       <header className="px-4 py-8 flex justify-center w-full max-w-7xl mx-auto relative z-10 animate-fade-in-up">
         <nav className="flex items-center gap-1 sm:gap-6 bg-white dark:bg-[#161b22] border border-gray-200 dark:border-[#30363d] rounded-full p-2 sm:pl-6 soft-shadow-sm">
           <div className="hidden sm:flex gap-6 font-medium text-sm text-gray-700 dark:text-gray-300 pr-2">
@@ -51,18 +79,6 @@ export default function Landing({ onStart, isDarkMode, onToggleTheme }: LandingP
 
         {/* Hero Text */}
         <div className="relative w-full max-w-4xl mx-auto">
-          {/* Star SVG on left */}
-          <svg className="hidden md:block absolute -left-12 top-20 w-12 h-12 text-[#111] dark:text-white animate-float-svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2l2.4 7.4h7.6l-6 4.6 2.3 7.4-6.3-4.8-6.3 4.8 2.3-7.4-6-4.6h7.6z"/>
-          </svg>
-
-          {/* Rainbow SVG on right */}
-          <svg className="hidden md:block absolute -right-16 bottom-0 w-24 h-24 text-[#111] dark:text-white animate-float-reverse-svg" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round">
-            <path d="M 10 90 A 40 40 0 0 1 90 90" />
-            <path d="M 26 90 A 24 24 0 0 1 74 90" />
-            <path d="M 42 90 A 8 8 0 0 1 58 90" />
-          </svg>
-
           <h1 className="font-serif text-5xl md:text-7xl lg:text-[5.5rem] leading-[1.05] text-[#111] dark:text-white mb-6 tracking-tight animate-fade-in-up animation-delay-100">
             Impress the crowd with elegant markdown
           </h1>

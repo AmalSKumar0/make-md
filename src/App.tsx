@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Landing from './components/Landing';
 import EditorView from './components/EditorView';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -16,6 +16,15 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [showLoader, setShowLoader] = useState(true);
   const [fadeLoader, setFadeLoader] = useState(false);
+
+  // Dynamic loading messages
+  const statusMessage = useMemo(() => {
+    if (progress < 25) return 'Initializing application...';
+    if (progress < 50) return 'Loading design system...';
+    if (progress < 80) return 'Setting up compiler...';
+    if (progress < 100) return 'Finalizing editor workspace...';
+    return 'Ready!';
+  }, [progress]);
 
   useEffect(() => {
     // Router popstate listener
@@ -80,27 +89,49 @@ export default function App() {
       {/* High-Fidelity Loading Screen */}
       {showLoader && (
         <div 
-          className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#fcfaf5] dark:bg-[#0d1117] transition-all duration-500 ease-out ${
+          className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#fcfaf5] dark:bg-[#0d1117] transition-all duration-500 ease-out overflow-hidden ${
             fadeLoader ? 'opacity-0 pointer-events-none scale-105' : 'opacity-100'
           }`}
         >
-          <div className="flex flex-col items-center max-w-xs w-full px-6">
-            <div className="w-16 h-16 bg-white dark:bg-[#161b22] border border-gray-200/50 dark:border-[#30363d]/50 rounded-[22px] flex items-center justify-center soft-shadow-lg mb-6 animate-pulse">
-              <svg className="w-8 h-8 text-[#7485b6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+          {/* Glowing mesh background radial panels */}
+          <div className="absolute top-1/4 left-1/4 w-80 h-80 rounded-full bg-pink-400/10 dark:bg-pink-900/5 blur-[100px] animate-pulse-slow pointer-events-none"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-400/10 dark:bg-indigo-900/5 blur-[120px] animate-pulse-slow-reverse pointer-events-none"></div>
+
+          <div className="flex flex-col items-center max-w-xs w-full px-6 relative z-10">
+            {/* Logo Mark with soft backglow */}
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-[#7485b6]/25 dark:bg-[#7485b6]/10 rounded-[22px] blur-xl scale-125 animate-pulse"></div>
+              <div className="relative w-16 h-16 bg-white dark:bg-[#161b22] border border-gray-200/50 dark:border-[#30363d]/50 rounded-[22px] flex items-center justify-center soft-shadow-lg transition-transform duration-300 hover:scale-105">
+                <svg className="w-8 h-8 text-[#7485b6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
             </div>
+            
             <h2 className="font-serif text-3xl font-semibold tracking-tight text-[#111] dark:text-white mb-2">
               Make.md
             </h2>
-            <p className="text-gray-400 dark:text-gray-500 text-[10px] tracking-wider uppercase mb-8 font-medium">
+            <p className="text-gray-400 dark:text-gray-500 text-[10px] tracking-wider uppercase mb-8 font-semibold">
               Elegant Markdown Editor
             </p>
-            <div className="w-40 h-[3px] bg-gray-200 dark:bg-[#30363d] rounded-full overflow-hidden relative">
-              <div 
-                className="h-full bg-[#7485b6] rounded-full transition-all duration-200 ease-out"
-                style={{ width: `${progress}%` }}
-              />
+            
+            {/* Progress indicator with live percentage and status description */}
+            <div className="w-48 flex flex-col items-center">
+              <div className="w-full h-[4px] bg-gray-200 dark:bg-[#30363d] rounded-full overflow-hidden relative shadow-inner">
+                <div 
+                  className="h-full bg-[#7485b6] rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(116,133,182,0.6)]"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              
+              <div className="w-full flex justify-between items-center mt-2.5 px-0.5">
+                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium tracking-wide">
+                  {statusMessage}
+                </span>
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 font-mono tracking-tight">
+                  {progress}%
+                </span>
+              </div>
             </div>
           </div>
         </div>
