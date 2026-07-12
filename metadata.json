@@ -1,0 +1,6 @@
+{
+  "name": "MAKE.MD",
+  "description": "A brutalist markdown editor with real-time preview and syntax highlighting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
