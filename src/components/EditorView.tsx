@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowLeft, Download, Eye, FileEdit, Info, Upload, FileText, ChevronDown, Layout, Bold, Italic, Heading, Quote, Code, List, ListOrdered, Link, Maximize2, Minimize2, Moon, Sun } from 'lucide-react';
+import { ArrowLeft, Download, Eye, FileEdit, Info, Upload, FileText, ChevronDown, Layout, Bold, Italic, Heading, Quote, Code, List, ListOrdered, Link, Maximize2, Minimize2, Moon, Sun, Copy, Printer, Check, HelpCircle, FileCode, Keyboard, Sparkles, BookOpen, Menu, X } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useElementSmoothScroll } from '../hooks/useSmoothScroll';
 import Editor from 'react-simple-code-editor';
@@ -230,7 +230,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor'); // For mobile
   const [layout, setLayout] = useLocalStorage<'split' | 'editor' | 'preview'>('makemd_editor_layout', 'split'); // For desktop
   const [filename, setFilename] = useLocalStorage<string>('makemd_editor_filename', 'untitled');
-  const [showTemplates, setShowTemplates] = useState(false);
+  const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
@@ -242,6 +242,225 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
 
   useElementSmoothScroll(editorScrollRef, true);
   useElementSmoothScroll(previewScrollRef, true);
+
+  // Advanced feature states
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarTab, setSidebarTab] = useState<'outline' | 'cheatsheet'>('outline');
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [isTypewriterMode, setIsTypewriterMode] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [copiedExport, setCopiedExport] = useState(false);
+
+  useEffect(() => {
+    setIsSidebarOpen(window.innerWidth > 1024);
+  }, []);
+
+  // 1. Parse Outline headings in real-time
+  const headers = useMemo(() => {
+    const lines = content.split('\n');
+    const items: { text: string; level: number; lineIndex: number }[] = [];
+    lines.forEach((line, index) => {
+      const match = line.match(/^(#{1,6})\s+(.+)$/);
+      if (match) {
+        // Strip markdown syntax from the outline text for display
+        const text = match[2].replace(/[#*`_\-~[\]()]/g, '').trim();
+        if (text) {
+          items.push({
+            level: match[1].length,
+            text,
+            lineIndex: index,
+          });
+        }
+      }
+    });
+    return items;
+  }, [content]);
+
+  // Scroll editor and preview to heading line
+  const handleHeaderClick = (headerText: string, lineIndex: number) => {
+    const textarea = editorContainerRef.current?.querySelector('textarea');
+    if (textarea) {
+      const lines = content.split('\n');
+      let charIndex = 0;
+      for (let i = 0; i < lineIndex; i++) {
+        charIndex += lines[i].length + 1; // +1 for newline character
+      }
+      textarea.focus();
+      textarea.setSelectionRange(charIndex, charIndex + lines[lineIndex].length);
+
+      const textHeight = textarea.scrollHeight;
+      const totalLines = lines.length;
+      const scrollPos = (lineIndex / totalLines) * textHeight;
+      if (editorScrollRef.current) {
+        editorScrollRef.current.scrollTop = Math.max(0, scrollPos - 120);
+      }
+    }
+
+    const previewDiv = previewScrollRef.current;
+    if (previewDiv) {
+      const headings = previewDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      const headingElement = Array.from(headings).find(
+        (el) => el.textContent?.trim() === headerText
+      );
+      if (headingElement) {
+        headingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
+  // 2. Real-time statistics calculations
+  const stats = useMemo(() => {
+    const text = content.trim();
+    const chars = content.length;
+    const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+    const readingTime = Math.max(1, Math.ceil(words / 200));
+    return { chars, words, readingTime };
+  }, [content]);
+
+  // 3. Interactive Cheat Sheet insert handler
+  const handleCheatSheetClick = (syntaxType: string) => {
+    const textarea = editorContainerRef.current?.querySelector('textarea');
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selectedText = text.substring(start, end);
+
+    let replacement = '';
+    let offset = 0;
+
+    switch (syntaxType) {
+      case 'bold':
+        replacement = `**${selectedText || 'bold text'}**`;
+        offset = 2;
+        break;
+      case 'italic':
+        replacement = `*${selectedText || 'italic text'}*`;
+        offset = 1;
+        break;
+      case 'heading':
+        replacement = `\n## ${selectedText || 'Heading'}\n`;
+        offset = 4;
+        break;
+      case 'link':
+        replacement = `[${selectedText || 'Link text'}](https://example.com)`;
+        offset = 1;
+        break;
+      case 'code-block':
+        replacement = `\n\`\`\`javascript\n${selectedText || '// Code goes here'}\n\`\`\`\n`;
+        offset = 16;
+        break;
+      case 'blockquote':
+        replacement = `\n> ${selectedText || 'Quote text'}\n`;
+        offset = 3;
+        break;
+      case 'list-bullet':
+        replacement = `\n- ${selectedText || 'List item'}\n`;
+        offset = 3;
+        break;
+      case 'list-todo':
+        replacement = `\n- [ ] ${selectedText || 'Todo item'}\n`;
+        offset = 8;
+        break;
+      case 'table':
+        replacement = `\n| Column 1 | Column 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n`;
+        offset = 2;
+        break;
+      case 'image':
+        replacement = `![${selectedText || 'Alt text'}](https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=500)`;
+        offset = 2;
+        break;
+    }
+
+    const newContent = text.substring(0, start) + replacement + text.substring(end);
+    setContent(newContent);
+    setIsSidebarOpen(false);
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + offset, start + replacement.length - offset);
+    }, 0);
+  };
+
+  // 4. Typewriter scrolling carets handler
+  const handleEditorSelectionChange = () => {
+    if (!isTypewriterMode || !editorScrollRef.current) return;
+    const textarea = editorContainerRef.current?.querySelector('textarea');
+    if (!textarea) return;
+
+    const textBeforeCursor = textarea.value.substring(0, textarea.selectionStart);
+    const cursorLine = textBeforeCursor.split('\n').length - 1;
+    const lines = textarea.value.split('\n');
+    const totalLines = lines.length;
+
+    const totalHeight = textarea.scrollHeight;
+    const lineHeight = totalHeight / totalLines;
+
+    const containerHeight = editorScrollRef.current.clientHeight;
+    const targetScroll = cursorLine * lineHeight - containerHeight / 2 + lineHeight / 2;
+
+    editorScrollRef.current.scrollTop = Math.max(0, targetScroll);
+  };
+
+  // 5. Multi-format export actions
+  const handleExport = async (format: 'md' | 'html' | 'copy-html' | 'print') => {
+    setShowExportDropdown(false);
+    
+    if (format === 'md') {
+      handleDownload();
+    } else if (format === 'html') {
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${filename || 'document'}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+  <style>
+    body {
+      box-sizing: border-box;
+      min-width: 200px;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 45px;
+      background-color: #fcfaf5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    @media (max-width: 767px) {
+      body {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body class="markdown-body">
+  ${document.querySelector('.markdown-body')?.innerHTML || content}
+</body>
+</html>`;
+      const file = new Blob([htmlContent], { type: 'text/html' });
+      const element = document.createElement('a');
+      element.href = URL.createObjectURL(file);
+      element.download = `${filename || 'untitled'}.html`;
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+    } else if (format === 'copy-html') {
+      const renderEl = document.querySelector('.markdown-body');
+      if (renderEl) {
+        try {
+          await navigator.clipboard.writeText(renderEl.innerHTML);
+          setCopiedExport(true);
+          setTimeout(() => setCopiedExport(false), 2000);
+        } catch (err) {
+          console.error('Failed to copy HTML:', err);
+        }
+      }
+    } else if (format === 'print') {
+      window.print();
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -399,14 +618,29 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
       )}
 
       {/* Top Toolbar */}
-      <header className="h-16 flex-shrink-0 flex justify-between items-center px-4 md:px-6 max-w-[1600px] mx-auto w-full relative">
-        <div className="flex items-center gap-4">
+      <header className={`h-16 flex-shrink-0 flex justify-between items-center px-4 md:px-6 max-w-[1600px] mx-auto w-full relative transition-all duration-300 ${
+        isFocusMode || isFullscreen ? 'opacity-0 h-0 overflow-hidden pointer-events-none' : 'opacity-100'
+      }`}>
+        <div className="flex items-center gap-2 md:gap-4">
           <button 
             onClick={onBack}
             className="w-8 h-8 bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 rounded-full flex items-center justify-center soft-shadow transition-all duration-300 hover:scale-110 active:scale-90 hover:shadow-md hover:-translate-y-0.5"
             title="Back to home"
           >
             <ArrowLeft className="w-4 h-4" />
+          </button>
+
+          {/* Sidebar Toggle button on desktop */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className={`hidden md:flex w-8 h-8 rounded-full items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90 ${
+              isSidebarOpen 
+                ? 'bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 soft-shadow' 
+                : 'bg-gray-100 dark:bg-[#21262d] text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-white border border-gray-200/40 dark:border-transparent'
+            }`}
+            title="Toggle Sidebar (Outline & Markdown)"
+          >
+            <BookOpen className="w-4 h-4" />
           </button>
           
           {/* Logo only on mobile */}
@@ -472,8 +706,8 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
             <Download className="w-3.5 h-3.5" />
           </button>
 
-          {/* Desktop Save Input */}
-          <div className="hidden sm:flex items-center gap-2">
+          {/* Desktop Save & Export Dropdown */}
+          <div className="hidden sm:flex items-center gap-2 relative">
             <div className="h-8 flex items-center bg-white dark:bg-[#161b22] rounded-full px-3 soft-shadow-sm border border-gray-100 dark:border-[#21262d]">
               <input 
                 type="text" 
@@ -484,112 +718,314 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
               />
               <span className="text-gray-400 text-xs font-medium">.md</span>
             </div>
-            <button 
-              onClick={handleDownload}
-              className="h-8 px-4 rounded-full bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 flex items-center gap-1.5 text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-md hover:-translate-y-0.5"
-            >
-              <Download className="w-3 h-3" />
-              <span>Save</span>
-            </button>
+            
+            <div className="relative">
+              <button 
+                onClick={() => setShowExportDropdown(!showExportDropdown)}
+                className="h-8 px-4 rounded-full bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 flex items-center gap-1.5 text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-md hover:-translate-y-0.5"
+              >
+                <Download className="w-3 h-3" />
+                <span>Export</span>
+                <ChevronDown className="w-3 h-3 ml-0.5 opacity-80" />
+              </button>
+
+              {showExportDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowExportDropdown(false)} />
+                  <div className="absolute top-10 right-0 w-48 bg-white dark:bg-[#161b22] rounded-2xl soft-shadow-lg border border-gray-100 dark:border-[#21262d] py-2 z-50 overflow-hidden animate-fade-in-up">
+                    <button 
+                      onClick={() => handleExport('md')}
+                      className="w-full text-left px-4 py-2.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors flex items-center gap-2"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Export Markdown (.md)
+                    </button>
+                    <button 
+                      onClick={() => handleExport('html')}
+                      className="w-full text-left px-4 py-2.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors flex items-center gap-2"
+                    >
+                      <FileCode className="w-3.5 h-3.5" /> Export HTML (.html)
+                    </button>
+                    <button 
+                      onClick={() => handleExport('copy-html')}
+                      className="w-full text-left px-4 py-2.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors flex items-center gap-2 justify-between"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Copy className="w-3.5 h-3.5" /> Copy HTML Render
+                      </span>
+                      {copiedExport && <Check className="w-3 h-3 text-green-500" />}
+                    </button>
+                    <button 
+                      onClick={() => handleExport('print')}
+                      className="w-full text-left px-4 py-2.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors flex items-center gap-2"
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Print / Export PDF
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
+            {/* Main Content */}
+      <main className="flex-1 flex overflow-hidden p-2 md:p-3 lg:p-4 pt-0 gap-2 lg:gap-4 max-w-[1600px] mx-auto w-full relative justify-center">
+        {/* Left Sidebar (Outline / Cheat Sheet) - Floats over the layout to avoid dynamic resizing of the editor */}
+        {isSidebarOpen && !isFocusMode && !isFullscreen && (
+          <>
+            {/* Dimmed backdrop overlay for premium look & click-outside close */}
+            <div 
+              className="absolute inset-0 z-20 bg-black/10 dark:bg-black/35 backdrop-blur-[2px] print-hide transition-opacity duration-350" 
+              onClick={() => setIsSidebarOpen(false)} 
+            />
+            <div className="absolute left-0 top-0 bottom-0 w-72 z-30 bg-white dark:bg-[#161b22] rounded-r-[32px] soft-shadow-xl flex flex-col overflow-hidden border-r border-gray-100 dark:border-[#21262d] animate-slide-in-left print-hide">
+              {/* Sidebar Tabs & Close Button */}
+              <div className="h-14 border-b border-gray-100 dark:border-[#21262d] flex items-center justify-between px-4 gap-2.5 flex-shrink-0">
+                <div className="flex bg-gray-100 dark:bg-[#21262d] p-1 rounded-full flex-1">
+                  <button
+                    onClick={() => setSidebarTab('outline')}
+                    className={`flex-1 py-1 text-center rounded-full text-xs font-bold tracking-wide transition-all duration-350 ${
+                      sidebarTab === 'outline'
+                        ? 'bg-white dark:bg-[#161b22] text-[#111] dark:text-white soft-shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-white'
+                    }`}
+                  >
+                    Outline
+                  </button>
+                  <button
+                    onClick={() => setSidebarTab('cheatsheet')}
+                    className={`flex-1 py-1 text-center rounded-full text-xs font-bold tracking-wide transition-all duration-350 ${
+                      sidebarTab === 'cheatsheet'
+                        ? 'bg-white dark:bg-[#161b22] text-[#111] dark:text-white soft-shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-white'
+                    }`}
+                  >
+                    Reference
+                  </button>
+                </div>
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-250 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 active:scale-95 flex-shrink-0"
+                  title="Close Sidebar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-      {/* Main Content */}
-      <main className="flex-1 flex overflow-hidden p-2 md:p-3 lg:p-4 pt-0 gap-2 lg:gap-4 max-w-[1600px] mx-auto w-full">
+              {/* Sidebar Content */}
+              <div className="flex-1 overflow-y-auto p-4 scrollbar-none" data-lenis-prevent="true">
+                {sidebarTab === 'outline' ? (
+                  <div className="space-y-3">
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-[#7485b6]" /> Table of Contents
+                    </div>
+                    {headers.length === 0 ? (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 italic text-center py-8">
+                        Add headings (e.g. # Hello) to see the outline.
+                      </p>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {headers.map((h, i) => {
+                          const indentPadding = [
+                            'pl-0 font-bold text-gray-800 dark:text-gray-200 text-xs',
+                            'pl-3 border-l border-gray-200 dark:border-gray-800 ml-1.5 text-gray-600 dark:text-gray-450 text-xs',
+                            'pl-6 border-l border-gray-200 dark:border-gray-800 ml-1.5 text-gray-500 dark:text-gray-500 text-[11px]',
+                            'pl-9 border-l border-gray-200 dark:border-gray-800 ml-1.5 text-gray-450 dark:text-gray-600 text-[11px]',
+                            'pl-12 border-l border-gray-200 dark:border-gray-800 ml-1.5 text-gray-400 dark:text-gray-650 text-[10px]',
+                            'pl-14 border-l border-gray-200 dark:border-gray-800 ml-1.5 text-gray-400 dark:text-gray-650 text-[10px]'
+                          ];
+                          const cls = indentPadding[Math.min(h.level - 1, 5)];
+                          return (
+                            <div key={i} className="py-0.5">
+                              <button
+                                onClick={() => {
+                                  handleHeaderClick(h.text, h.lineIndex);
+                                  if (window.innerWidth < 768) setIsSidebarOpen(false);
+                                }}
+                                className={`w-full text-left py-1 hover:text-[#7485b6] dark:hover:text-white hover:bg-[#fcf7e6] dark:hover:bg-gray-800 rounded-lg px-2 transition-all duration-200 block truncate ${cls}`}
+                                title={h.text}
+                              >
+                                <span className="opacity-45 mr-1 text-[10px] font-semibold text-[#7485b6]">{'#'.repeat(h.level)}</span>
+                                {h.text}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1.5">
+                      <HelpCircle className="w-3.5 h-3.5 text-[#7485b6]" /> MD Quick Reference
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { name: 'Heading', syntax: '# title', type: 'heading', icon: 'H' },
+                        { name: 'Bold', syntax: '**bold**', type: 'bold', icon: 'B' },
+                        { name: 'Italic', syntax: '*italic*', type: 'italic', icon: 'I' },
+                        { name: 'Link', syntax: '[text](url)', type: 'link', icon: '🔗' },
+                        { name: 'Code Block', syntax: '```code```', type: 'code-block', icon: '💻' },
+                        { name: 'Blockquote', syntax: '> quote', type: 'blockquote', icon: '“' },
+                        { name: 'Bullet List', syntax: '- bullet', type: 'list-bullet', icon: '•' },
+                        { name: 'Todo List', syntax: '- [ ] task', type: 'list-todo', icon: '☑' },
+                        { name: 'Table', syntax: '| col | col |', type: 'table', icon: '田' },
+                        { name: 'Image', syntax: '![alt](url)', type: 'image', icon: '🖼' },
+                      ].map((item, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleCheatSheetClick(item.type)}
+                          className="text-left p-2.5 bg-gray-50 dark:bg-[#21262d]/40 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 border border-gray-100 dark:border-transparent rounded-2xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 hover:shadow-sm flex flex-col justify-between h-[68px]"
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">
+                              {item.name}
+                            </span>
+                            <span className="text-xs opacity-50 font-mono">
+                              {item.icon}
+                            </span>
+                          </div>
+                          <code className="text-[9px] text-gray-400 dark:text-gray-500 font-mono block truncate w-full mt-1.5">
+                            {item.syntax}
+                          </code>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Editor Panel */}
         <div 
           ref={editorContainerRef}
-          className={`overflow-hidden transition-all duration-300 ${
-            isFullscreen 
-              ? 'fixed inset-0 z-50 flex flex-col bg-white dark:bg-[#161b22] p-0 md:p-6 lg:p-8' 
-              : `flex-1 h-full bg-white dark:bg-[#161b22] rounded-[32px] soft-shadow-lg flex-col ${
+          className={`overflow-hidden transition-all duration-300 print-hide bg-white dark:bg-[#161b22] ${
+            isFullscreen
+              ? (layout === 'preview' || activeTab === 'preview'
+                  ? 'hidden'
+                  : 'fixed inset-0 z-50 p-4 md:p-6 lg:p-8 max-w-none rounded-none flex flex-col h-full')
+              : `relative max-w-3xl w-full mx-auto flex flex-col h-full rounded-[32px] soft-shadow-lg ${
                   layout === 'preview' ? 'hidden' : 'flex'
                 } ${activeTab === 'preview' ? 'hidden md:flex' : 'flex'}`
           }`}
         >
           <div className="h-14 border-b border-gray-100 dark:border-[#21262d] flex items-center justify-between px-4 md:px-6 flex-shrink-0">
             <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-              {isFullscreen ? 'Zen Editor' : 'Editor'}
+              {isFocusMode ? 'Focus Mode' : isFullscreen ? 'Zen Editor' : 'Editor'}
               {isFullscreen && (
                 <span className="hidden sm:inline-block text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-400 font-normal px-2 py-0.5 rounded-full uppercase tracking-wider">
                   Press Esc to exit
                 </span>
               )}
             </span>
-            <div className="flex items-center gap-3">
-              {/* Templates dropdown */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Unified Hamburger Menu */}
               <div className="relative">
-                <button 
-                  onClick={() => setShowTemplates(!showTemplates)}
-                  className="h-8 px-4 rounded-full bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 flex items-center gap-1.5 text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95"
-                  title="Templates"
+                <button
+                  onClick={() => setShowHamburgerMenu(!showHamburgerMenu)}
+                  className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 ${
+                    showHamburgerMenu
+                      ? 'bg-[#111] dark:bg-white text-white dark:text-[#111]'
+                      : 'bg-gray-100 dark:bg-[#21262d] text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-white'
+                  }`}
+                  title="Options Menu"
                 >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Templates</span>
-                  <ChevronDown className="w-3 h-3 opacity-70" />
+                  <Menu className="w-4 h-4" />
                 </button>
-                
-                {showTemplates && (
+
+                {showHamburgerMenu && (
                   <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowTemplates(false)} />
-                    <div className="absolute top-10 right-0 w-48 bg-white dark:bg-[#161b22] rounded-2xl soft-shadow-lg border border-gray-100 dark:border-[#21262d] py-2 z-20 overflow-hidden">
+                    <div className="fixed inset-0 z-20" onClick={() => setShowHamburgerMenu(false)} />
+                    <div className="absolute top-10 right-0 w-56 bg-white dark:bg-[#161b22] rounded-2xl soft-shadow-lg border border-gray-100 dark:border-[#21262d] py-2 z-30 overflow-hidden animate-scale-in">
+                      
+                      {/* Document Actions */}
+                      <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                        Actions
+                      </div>
                       <button 
-                        onClick={() => { setContent(TEMPLATES.readme); setFilename('README'); setShowTemplates(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
+                        onClick={() => { fileInputRef.current?.click(); setShowHamburgerMenu(false); }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 transition-colors text-left"
                       >
-                        📝 README.md
+                        <Upload className="w-3.5 h-3.5" />
+                        Import file
                       </button>
+
+                      {/* Templates Submenu */}
+                      <div className="h-[1px] bg-gray-105 dark:bg-[#21262d] my-1" />
+                      <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                        <FileText className="w-3 h-3" /> Quick Templates
+                      </div>
+                      
+                      <div className="max-h-36 overflow-y-auto scrollbar-none">
+                        {[
+                          { name: 'README.md', key: 'readme', filename: 'README' },
+                          { name: 'Meeting Notes', key: 'meeting', filename: 'Meeting_Notes' },
+                          { name: 'Changelog', key: 'changelog', filename: 'CHANGELOG' },
+                          { name: 'Daily Journal', key: 'journal', filename: 'Journal' },
+                          { name: 'Blog Post', key: 'blog', filename: 'Blog_Post' },
+                          { name: 'Documentation', key: 'docs', filename: 'Documentation' },
+                          { name: 'Task List', key: 'tasks', filename: 'Tasks' },
+                        ].map((t) => (
+                          <button
+                            key={t.key}
+                            onClick={() => {
+                              setContent(TEMPLATES[t.key as keyof typeof TEMPLATES]);
+                              setFilename(t.filename);
+                              setShowHamburgerMenu(false);
+                            }}
+                            className="w-full text-left pl-7 pr-4 py-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-400 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 transition-colors block truncate"
+                          >
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Preferences */}
+                      <div className="h-[1px] bg-gray-105 dark:bg-[#21262d] my-1" />
+                      <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                        Preferences
+                      </div>
+
                       <button 
-                        onClick={() => { setContent(TEMPLATES.meeting); setFilename('Meeting_Notes'); setShowTemplates(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
+                        onClick={() => { setIsFocusMode(!isFocusMode); setShowHamburgerMenu(false); }}
+                        className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 transition-colors"
                       >
-                        👥 Meeting Notes
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Focus Mode
+                        </span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isFocusMode ? 'bg-[#7485b6]' : 'bg-transparent'}`} />
                       </button>
+
                       <button 
-                        onClick={() => { setContent(TEMPLATES.changelog); setFilename('CHANGELOG'); setShowTemplates(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
+                        onClick={() => { setIsTypewriterMode(!isTypewriterMode); setShowHamburgerMenu(false); }}
+                        className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 transition-colors"
                       >
-                        🚀 Changelog
+                        <span className="flex items-center gap-2">
+                          <Keyboard className="w-3.5 h-3.5" />
+                          Typewriter Mode
+                        </span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isTypewriterMode ? 'bg-[#7485b6]' : 'bg-transparent'}`} />
                       </button>
+
                       <button 
-                        onClick={() => { setContent(TEMPLATES.journal); setFilename('Journal'); setShowTemplates(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
+                        onClick={() => { setIsFullscreen(!isFullscreen); setShowHamburgerMenu(false); }}
+                        className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 transition-colors"
                       >
-                        📔 Daily Journal
+                        <span className="flex items-center gap-2">
+                          <Maximize2 className="w-3.5 h-3.5" />
+                          Zen Mode
+                        </span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isFullscreen ? 'bg-[#7485b6]' : 'bg-transparent'}`} />
                       </button>
-                      <button 
-                        onClick={() => { setContent(TEMPLATES.blog); setFilename('Blog_Post'); setShowTemplates(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
-                      >
-                        ✍️ Blog Post
-                      </button>
-                      <button 
-                        onClick={() => { setContent(TEMPLATES.docs); setFilename('Documentation'); setShowTemplates(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
-                      >
-                        📖 Documentation
-                      </button>
-                      <button 
-                        onClick={() => { setContent(TEMPLATES.tasks); setFilename('Tasks'); setShowTemplates(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
-                      >
-                        📋 Task List
-                      </button>
+
                     </div>
                   </>
                 )}
               </div>
 
-              {/* Import button */}
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="h-8 px-4 rounded-full bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 flex items-center gap-1.5 text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95"
-                title="Import .md or .txt file"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Import</span>
-              </button>
+              {/* Hidden Import file input */}
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -597,21 +1033,9 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
                 accept=".md,.txt" 
                 className="hidden" 
               />
-              
-              <button
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                className={`h-8 px-4 rounded-full flex items-center gap-1.5 text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${
-                  isFullscreen 
-                    ? 'bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100' 
-                    : 'bg-gray-100 dark:bg-[#21262d] text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-white'
-                }`}
-                title={isFullscreen ? "Exit Zen Mode" : "Enter Zen Mode / Fullscreen"}
-              >
-                {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">{isFullscreen ? 'Exit Zen' : 'Zen Mode'}</span>
-              </button>
             </div>
           </div>
+
           {/* Format Toolbar */}
           <div className="px-4 md:px-6 py-2 border-b border-gray-100 dark:border-[#21262d] bg-[#fbfbfa]/60 dark:bg-[#161b22]/60 flex items-center gap-1 overflow-x-auto flex-shrink-0 scrollbar-none">
             <button
@@ -673,7 +1097,8 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
               <ListOrdered className="w-4 h-4" />
             </button>
           </div>
-          <div ref={editorScrollRef} className="flex-1 overflow-y-auto" data-lenis-prevent>
+
+          <div ref={editorScrollRef} className="flex-1 overflow-y-auto" data-lenis-prevent="true">
             <Editor
               value={content}
               onValueChange={setContent}
@@ -684,18 +1109,47 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
               style={{
                 fontFamily: '"JetBrains Mono", monospace',
               }}
+              onKeyUp={handleEditorSelectionChange}
+              onMouseUp={handleEditorSelectionChange}
             />
+          </div>
+
+          {/* Statistics HUD Floating Badge */}
+          <div className="absolute bottom-4 right-4 z-10 flex items-center gap-3 px-3 py-1.5 rounded-full bg-white/80 dark:bg-black/75 backdrop-blur-md border border-gray-200/50 dark:border-gray-800/50 text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-300 soft-shadow transition-all duration-300 hover:scale-105 hover:bg-white dark:hover:bg-black select-none pointer-events-auto">
+            <span>{stats.words} words</span>
+            <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
+            <span>{stats.chars} chars</span>
+            <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
+            <span>{stats.readingTime} min read</span>
           </div>
         </div>
 
         {/* Preview Panel */}
-        <div className={`flex-1 h-full bg-white dark:bg-[#161b22] rounded-[32px] soft-shadow-lg flex-col overflow-hidden ${
-          layout === 'editor' ? 'hidden' : 'flex'
-        } ${activeTab === 'editor' ? 'hidden md:flex' : 'flex'}`}>
-          <div className="h-14 border-b border-gray-100 dark:border-[#21262d] flex items-center justify-between px-6 flex-shrink-0">
+        <div className={`bg-white dark:bg-[#161b22] overflow-hidden print-full ${
+          isFullscreen
+            ? (layout === 'preview' || activeTab === 'preview'
+                ? 'fixed inset-0 z-50 p-4 md:p-6 lg:p-8 max-w-none rounded-none flex flex-col h-full'
+                : 'hidden')
+            : `flex-grow h-full rounded-[32px] soft-shadow-lg flex-col w-full mx-auto ${
+                layout === 'preview' ? 'max-w-none' : 'max-w-3xl'
+              } ${
+                isFocusMode ? 'hidden' : ''
+              } ${
+                layout === 'editor' ? 'hidden' : 'flex'
+              } ${activeTab === 'editor' ? 'hidden md:flex' : 'flex'}`
+        }`}>
+          <div className="h-14 border-b border-gray-100 dark:border-[#21262d] flex items-center justify-between px-6 flex-shrink-0 print-hide">
             <span className="font-semibold text-gray-800 dark:text-gray-200">Preview</span>
+            {isFullscreen && (
+              <button 
+                onClick={() => setIsFullscreen(false)}
+                className="px-3 py-1 text-xs font-semibold bg-gray-150 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-650 dark:text-gray-300 rounded-full transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Minimize2 className="w-3 h-3" /> Exit Zen
+              </button>
+            )}
           </div>
-          <div ref={previewScrollRef} className="flex-1 overflow-y-auto" data-lenis-prevent>
+          <div ref={previewScrollRef} className="flex-1 overflow-y-auto print-overflow-visible" data-lenis-prevent="true">
              <MarkdownPreview content={content} />
           </div>
         </div>
