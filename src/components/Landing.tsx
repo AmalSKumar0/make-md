@@ -98,6 +98,23 @@ export default function Landing({ onStart, isDarkMode, onToggleTheme }: LandingP
         </div>
 
       </main>
+
+      <footer className="w-full max-w-5xl mx-auto px-6 py-8 mt-8 border-t border-gray-200 dark:border-[#30363d] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-400 dark:text-gray-500 relative z-10">
+        <div>
+          &copy; {new Date().getFullYear()} Make.md. All rights reserved.
+        </div>
+        <div>
+          Designed and developed by{' '}
+          <a 
+            href="https://amalskumar.dev" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="font-medium text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white transition-colors underline decoration-dotted underline-offset-4"
+          >
+            Amal S Kumar
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
