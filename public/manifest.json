@@ -1,0 +1,17 @@
+{
+  "short_name": "Make.md",
+  "name": "Make.md — Clean, Real-Time Markdown Editor",
+  "description": "Make.md is a beautiful, distraction-free markdown editor with instant real-time rendering, soft syntax highlighting, word counters, and easy file import/export.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/editor",
+  "background_color": "#fcf7e6",
+  "theme_color": "#fcf7e6",
+  "display": "standalone",
+  "orientation": "any"
+}
