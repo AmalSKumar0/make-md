@@ -261,10 +261,37 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [copiedExport, setCopiedExport] = useState(false);
 
-  // API and Grok Formatter states
+  // API and Grok Formatter states and Cache
   const [isFormatting, setIsFormatting] = useState(false);
-  const [formatStatus, setFormatStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [formatStatus, setFormatStatus] = useState<'idle' | 'success' | 'already_formatted' | 'cached' | 'error'>('idle');
   const [formatError, setFormatError] = useState('');
+
+  // Persistent in-memory cache initialized from localStorage (limited to last 50 entries)
+  const formatCacheRef = useRef<Record<string, string>>((() => {
+    try {
+      const cached = localStorage.getItem('makemd_format_cache');
+      return cached ? JSON.parse(cached) : {};
+    } catch {
+      return {};
+    }
+  })());
+
+  const saveToFormatCache = (rawText: string, formattedText: string) => {
+    const cache = formatCacheRef.current;
+    cache[rawText] = formattedText;
+    
+    // Limit cache size to 50 items
+    const keys = Object.keys(cache);
+    if (keys.length > 50) {
+      delete cache[keys[0]];
+    }
+    
+    try {
+      localStorage.setItem('makemd_format_cache', JSON.stringify(cache));
+    } catch (e) {
+      console.warn('Failed to save format cache to localStorage:', e);
+    }
+  };
 
   const handleGrokFormat = async () => {
     const activeKey = process.env.grok_api as string;
@@ -282,33 +309,55 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
       return;
     }
 
+    // 1. Check if the current editor content is already in the values of our format cache (i.e. it's already formatted)
+    const cacheValues = Object.values(formatCacheRef.current);
+    if (cacheValues.includes(content)) {
+      setFormatStatus('already_formatted');
+      setTimeout(() => setFormatStatus('idle'), 3000);
+      return;
+    }
+
+    // 2. Check if we have a cached formatting result for the current content (key lookup)
+    if (formatCacheRef.current[content]) {
+      const cachedResult = formatCacheRef.current[content];
+      setContent(cachedResult, true);
+      setFormatStatus('cached');
+      setTimeout(() => setFormatStatus('idle'), 3000);
+      return;
+    }
+
     setIsFormatting(true);
     setFormatStatus('idle');
     setFormatError('');
 
     try {
-      const provider = activeKey.startsWith('gsk_') ? 'groq' : 'grok';
+      let formattedText;
+      if (activeKey === 'mock-api-key') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        formattedText = `${content.trim()}\n\n*Formatted with Grok Mock AI*`;
+      } else {
+        const provider = activeKey.startsWith('gsk_') ? 'groq' : 'grok';
 
-      const endpoint = provider === 'groq'
-        ? 'https://api.groq.com/openai/v1/chat/completions'
-        : 'https://api.x.ai/v1/chat/completions';
+        const endpoint = provider === 'groq'
+          ? 'https://api.groq.com/openai/v1/chat/completions'
+          : 'https://api.x.ai/v1/chat/completions';
 
-      const model = provider === 'groq'
-        ? 'llama-3.3-70b-versatile'
-        : 'grok-2-latest';
+        const model = provider === 'groq'
+          ? 'llama-3.3-70b-versatile'
+          : 'grok-2-latest';
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${activeKey}`
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            {
-              role: 'system',
-              content: `You are a strict markdown formatter. Your task is to take the provided text and correct/enhance its formatting to proper GitHub Flavored Markdown (GFM).
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${activeKey}`
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: 'system',
+                content: `You are a strict markdown formatter. Your task is to take the provided text and correct/enhance its formatting to proper GitHub Flavored Markdown (GFM).
 
 CRITICAL REQUIREMENT:
 Do NOT rewrite, rephrase, summarize, or edit any of the words, sentences, or paragraphs of the original text. You must preserve the original text content exactly word-for-word, sentence-for-sentence. Only adjust, insert, or clean up the markdown styling/formatting wrappers (such as headers, lists, code block blocks, tables, bold/italic markers, and spacing/alignment).
@@ -317,28 +366,30 @@ Rules:
 1. Preserve every word and sentence of the input text exactly. Do not add any new prose, commentary, or summaries.
 2. Fix and improve layout, indentation, list markers, table layouts, and headers to make the document structured and readable.
 3. Output ONLY the raw formatted markdown content. Do not wrap your entire output in a master markdown code block (like \`\`\`markdown ... \`\`\`). Only use code blocks for actual source code blocks contained inside the content.`
-            },
-            {
-              role: 'user',
-              content
-            }
-          ],
-          temperature: 0.2
-        })
-      });
+              },
+              {
+                role: 'user',
+                content
+              }
+            ],
+            temperature: 0.2
+          })
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData?.error?.message || `HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData?.error?.message || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        formattedText = data?.choices?.[0]?.message?.content;
+
+        if (!formattedText) {
+          throw new Error('Empty response received from the model.');
+        }
       }
 
-      const data = await response.json();
-      const formattedText = data?.choices?.[0]?.message?.content;
-
-      if (!formattedText) {
-        throw new Error('Empty response received from the model.');
-      }
-
+      saveToFormatCache(content, formattedText);
       setContent(formattedText, true);
       setFormatStatus('success');
       setTimeout(() => setFormatStatus('idle'), 3000);
@@ -1280,6 +1331,16 @@ Rules:
                   Formatted!
                 </span>
               )}
+              {formatStatus === 'cached' && (
+                <span className="text-[10px] text-green-500 font-semibold">
+                  Formatted! (cached)
+                </span>
+              )}
+              {formatStatus === 'already_formatted' && (
+                <span className="text-[10px] text-[#7485b6] dark:text-[#8b9bb4] font-semibold">
+                  Already formatted!
+                </span>
+              )}
 
               <button
                 onClick={handleGrokFormat}
@@ -1287,7 +1348,7 @@ Rules:
                 className={`h-7 px-3.5 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 cursor-pointer ${
                   isFormatting
                     ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-550 cursor-wait'
-                    : formatStatus === 'success'
+                    : formatStatus === 'success' || formatStatus === 'cached' || formatStatus === 'already_formatted'
                     ? ''
                     : formatStatus === 'error'
                     ? ''
