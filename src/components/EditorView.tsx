@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowLeft, Download, Eye, FileEdit, Info, Upload, FileText, ChevronDown, Layout, Bold, Italic, Heading, Quote, Code, List, ListOrdered, Link, Maximize2, Minimize2, Moon, Sun, Copy, Printer, Check, HelpCircle, FileCode, Keyboard, Sparkles, BookOpen, Menu, X, Undo, Redo } from 'lucide-react';
+import { ArrowLeft, Download, Eye, FileEdit, Info, Upload, FileText, ChevronDown, Layout, Bold, Italic, Heading, Quote, Code, List, ListOrdered, Link, Maximize2, Minimize2, Moon, Sun, Copy, Printer, Check, HelpCircle, FileCode, Keyboard, Sparkles, BookOpen, Menu, X, Undo, Redo, Settings, Loader2 } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useUndoRedo } from '../hooks/useUndoRedo';
 import { useElementSmoothScroll } from '../hooks/useSmoothScroll';
@@ -260,6 +260,97 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
   const [isTypewriterMode, setIsTypewriterMode] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [copiedExport, setCopiedExport] = useState(false);
+
+  // API and Grok Formatter states
+  const [isFormatting, setIsFormatting] = useState(false);
+  const [formatStatus, setFormatStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [formatError, setFormatError] = useState('');
+
+  const handleGrokFormat = async () => {
+    const activeKey = process.env.grok_api as string;
+    if (!activeKey) {
+      setFormatStatus('error');
+      setFormatError('API key not found. Please configure grok_api in your .env file.');
+      setTimeout(() => setFormatStatus('idle'), 6000);
+      return;
+    }
+
+    if (!content.trim()) {
+      setFormatStatus('error');
+      setFormatError('Editor is empty. Write some text first.');
+      setTimeout(() => setFormatStatus('idle'), 3000);
+      return;
+    }
+
+    setIsFormatting(true);
+    setFormatStatus('idle');
+    setFormatError('');
+
+    try {
+      const provider = activeKey.startsWith('gsk_') ? 'groq' : 'grok';
+
+      const endpoint = provider === 'groq'
+        ? 'https://api.groq.com/openai/v1/chat/completions'
+        : 'https://api.x.ai/v1/chat/completions';
+
+      const model = provider === 'groq'
+        ? 'llama-3.3-70b-versatile'
+        : 'grok-2-latest';
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeKey}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content: `You are a strict markdown formatter. Your task is to take the provided text and correct/enhance its formatting to proper GitHub Flavored Markdown (GFM).
+
+CRITICAL REQUIREMENT:
+Do NOT rewrite, rephrase, summarize, or edit any of the words, sentences, or paragraphs of the original text. You must preserve the original text content exactly word-for-word, sentence-for-sentence. Only adjust, insert, or clean up the markdown styling/formatting wrappers (such as headers, lists, code block blocks, tables, bold/italic markers, and spacing/alignment).
+
+Rules:
+1. Preserve every word and sentence of the input text exactly. Do not add any new prose, commentary, or summaries.
+2. Fix and improve layout, indentation, list markers, table layouts, and headers to make the document structured and readable.
+3. Output ONLY the raw formatted markdown content. Do not wrap your entire output in a master markdown code block (like \`\`\`markdown ... \`\`\`). Only use code blocks for actual source code blocks contained inside the content.`
+            },
+            {
+              role: 'user',
+              content
+            }
+          ],
+          temperature: 0.2
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error?.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const formattedText = data?.choices?.[0]?.message?.content;
+
+      if (!formattedText) {
+        throw new Error('Empty response received from the model.');
+      }
+
+      setContent(formattedText, true);
+      setFormatStatus('success');
+      setTimeout(() => setFormatStatus('idle'), 3000);
+    } catch (err: any) {
+      console.error('Grok Formatting Error:', err);
+      setFormatStatus('error');
+      setFormatError(err.message || 'An error occurred during formatting.');
+      setTimeout(() => setFormatStatus('idle'), 6000);
+    } finally {
+      setIsFormatting(false);
+    }
+  };
 
   // 1. Parse Outline headings in real-time
   const headers = useMemo(() => {
@@ -1166,13 +1257,57 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
             />
           </div>
 
-          {/* Statistics HUD Floating Badge */}
-          <div className="absolute bottom-4 right-4 z-10 flex items-center gap-3 px-3 py-1.5 rounded-full bg-white/80 dark:bg-black/75 backdrop-blur-md border border-gray-200/50 dark:border-gray-800/50 text-[10px] sm:text-xs font-semibold text-gray-600 dark:text-gray-300 soft-shadow transition-all duration-300 hover:scale-105 hover:bg-white dark:hover:bg-black select-none pointer-events-auto">
-            <span>{stats.words} words</span>
-            <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
-            <span>{stats.chars} chars</span>
-            <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
-            <span>{stats.readingTime} min read</span>
+          {/* Footer containing Stats & AI Formatter */}
+          <div className="h-12 border-t border-gray-100 dark:border-[#21262d] bg-[#fbfbfa]/65 dark:bg-[#161b22]/65 backdrop-blur-md px-4 flex items-center justify-between flex-shrink-0 z-10">
+            {/* Left: Statistics */}
+            <div className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 select-none">
+              <span>{stats.words} words</span>
+              <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
+              <span>{stats.chars} chars</span>
+              <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
+              <span>{stats.readingTime} min read</span>
+            </div>
+
+            {/* Right: AI Format button */}
+            <div className="flex items-center gap-2">
+              {formatStatus === 'error' && (
+                <span className="text-[10px] text-red-500 font-semibold max-w-[150px] sm:max-w-[240px] truncate" title={formatError}>
+                  {formatError}
+                </span>
+              )}
+              {formatStatus === 'success' && (
+                <span className="text-[10px] text-green-500 font-semibold">
+                  Formatted!
+                </span>
+              )}
+
+              <button
+                onClick={handleGrokFormat}
+                disabled={isFormatting}
+                className={`h-7 px-3.5 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 cursor-pointer ${
+                  isFormatting
+                    ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-550 cursor-wait'
+                    : formatStatus === 'success'
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : formatStatus === 'error'
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 soft-shadow-sm'
+                }`}
+                title="Format Markdown with Grok AI"
+              >
+                {isFormatting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Formatting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3" />
+                    <span>Format with Grok</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 

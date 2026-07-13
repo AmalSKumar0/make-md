@@ -1,0 +1,25 @@
+{
+  "id": "makemd",
+  "title": "Make.md",
+  "shortDescription": "An ultra-elegant, high-performance, and distraction-free Markdown Editor built for the modern web.",
+  "fullDescription": "A premium, minimalist Markdown Editor featuring a dual-mode layout, responsive Zen writing experience, modular workspace controls, native drag-and-drop file importer, and a unified dark/light mode engine.",
+  "tags": [
+    "React",
+    "TypeScript",
+    "Vite",
+    "Tailwind CSS",
+    "Markdown"
+  ],
+  "imageUrl": "/project/makemd.png",
+  "combinedImageUrl": "/project/makemd_combined.jpg",
+  "demoUrl": "https://make.amalskumar.dev/",
+  "githubUrl": "https://github.com/AmalSKumar0/make-md",
+  "features": [
+    "Interactive & Crafted Landing Page",
+    "Modular Multi-Layout Split Workspace",
+    "Optimized Fullscreen Zen Writing Mode",
+    "Native Drag-and-Drop File Importer"
+  ],
+  "role": "Frontend Specialist",
+  "date": "2026"
+}
