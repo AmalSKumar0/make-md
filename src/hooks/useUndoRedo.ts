@@ -43,8 +43,8 @@ export function useUndoRedo(
     setCanRedo(futureRef.current.length > 0);
   };
 
-  const update = useCallback((newVal: string, forceCommit = false) => {
-    if (newVal === lastValRef.current) return;
+  const update = useCallback((newVal: string, forceCommit = false, silent = false) => {
+    if (newVal === lastValRef.current && !forceCommit) return;
 
     const now = Date.now();
     const timePassed = now - lastCommitTimeRef.current;
@@ -54,7 +54,7 @@ export function useUndoRedo(
       newVal.length - lastValRef.current.length === 1 &&
       (newVal.endsWith(' ') || newVal.endsWith('\n') || newVal.endsWith('\t'));
 
-    if (forceCommit || timePassed > 1200 || isWhitespaceChange) {
+    if (!silent && (forceCommit || timePassed > 1200 || isWhitespaceChange)) {
       pastRef.current.push({
         value: lastValRef.current,
         selectionStart: selectionRef.current.start,
@@ -71,6 +71,20 @@ export function useUndoRedo(
     }
     updateStacksState();
   }, [onPersist]);
+
+  const commitCurrentState = useCallback(() => {
+    const lastHistoryEntry = pastRef.current[pastRef.current.length - 1];
+    if (!lastHistoryEntry || lastHistoryEntry.value !== present) {
+      pastRef.current.push({
+        value: present,
+        selectionStart: selectionRef.current.start,
+        selectionEnd: selectionRef.current.end,
+      });
+      futureRef.current = [];
+      lastCommitTimeRef.current = Date.now();
+      updateStacksState();
+    }
+  }, [present]);
 
   const undo = useCallback(() => {
     if (pastRef.current.length === 0) return;
@@ -154,5 +168,6 @@ export function useUndoRedo(
     canUndo,
     canRedo,
     resetHistory,
+    commitCurrentState,
   };
 }

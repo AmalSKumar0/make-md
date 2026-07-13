@@ -1288,9 +1288,9 @@ Rules:
                   isFormatting
                     ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-550 cursor-wait'
                     : formatStatus === 'success'
-                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    ? ''
                     : formatStatus === 'error'
-                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    ? ''
                     : 'bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 soft-shadow-sm'
                 }`}
                 title="Format Markdown with Grok AI"
@@ -1298,12 +1298,10 @@ Rules:
                 {isFormatting ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Formatting...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-3 h-3" />
-                    <span>Format with Grok</span>
                   </>
                 )}
               </button>
