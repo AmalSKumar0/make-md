@@ -1,5 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowLeft, Download, Eye, FileEdit, Info, Upload, FileText, ChevronDown, Layout, Bold, Italic, Heading, Quote, Code, List, ListOrdered, Link, Maximize2, Minimize2, Moon, Sun, Copy, Printer, Check, HelpCircle, FileCode, Keyboard, Sparkles, BookOpen, Menu, X, Undo, Redo, Settings, Loader2 } from 'lucide-react';
+import { 
+  Upload, 
+  Keyboard, 
+  Menu, 
+  Minimize2,
+  FileText
+} from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useUndoRedo } from '../hooks/useUndoRedo';
 import { useElementSmoothScroll } from '../hooks/useSmoothScroll';
@@ -12,6 +18,12 @@ import 'prismjs/components/prism-jsx';
 import 'prismjs/components/prism-tsx';
 import 'prismjs/components/prism-typescript';
 import MarkdownPreview from './MarkdownPreview';
+
+import EditorHeader from './EditorHeader';
+import Sidebar from './Sidebar';
+import FormatToolbar from './FormatToolbar';
+import EditorFooter from './EditorFooter';
+import MobileDownloadModal from './MobileDownloadModal';
 
 interface EditorViewProps {
   onBack: () => void;
@@ -237,6 +249,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
     canRedo,
     resetHistory
   } = useUndoRedo(savedContent, setSavedContent);
+  
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor'); // For mobile
   const [layout, setLayout] = useLocalStorage<'split' | 'editor' | 'preview'>('makemd_editor_layout', 'split'); // For desktop
   const [filename, setFilename] = useLocalStorage<string>('makemd_editor_filename', 'untitled');
@@ -258,7 +271,6 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
   const [sidebarTab, setSidebarTab] = useState<'outline' | 'cheatsheet'>('outline');
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [isTypewriterMode, setIsTypewriterMode] = useState(false);
-  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [copiedExport, setCopiedExport] = useState(false);
 
   // API and Grok Formatter states and Cache
@@ -454,6 +466,10 @@ Rules:
         headingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
+
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
   };
 
   // 2. Real-time statistics calculations
@@ -553,8 +569,6 @@ Rules:
 
   // 5. Multi-format export actions
   const handleExport = async (format: 'md' | 'html' | 'copy-html' | 'print') => {
-    setShowExportDropdown(false);
-    
     if (format === 'md') {
       handleDownload();
     } else if (format === 'html') {
@@ -787,284 +801,39 @@ Rules:
       )}
 
       {/* Top Toolbar */}
-      <header className={`h-16 flex-shrink-0 flex justify-between items-center px-4 md:px-6 max-w-[1600px] mx-auto w-full relative transition-all duration-300 ${
-        isFocusMode || isFullscreen ? 'opacity-0 h-0 overflow-hidden pointer-events-none' : 'opacity-100'
-      }`}>
-        <div className="flex items-center gap-2 md:gap-4">
-          <button 
-            onClick={onBack}
-            className="w-8 h-8 bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 rounded-full flex items-center justify-center soft-shadow transition-all duration-300 hover:scale-110 active:scale-90 hover:shadow-md hover:-translate-y-0.5"
-            title="Back to home"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
+      <EditorHeader
+        onBack={onBack}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        activeTab={activeTab}
+        onChangeActiveTab={setActiveTab}
+        layout={layout}
+        onChangeLayout={setLayout}
+        isDarkMode={isDarkMode}
+        onToggleTheme={onToggleTheme}
+        filename={filename}
+        onChangeFilename={setFilename}
+        isFocusMode={isFocusMode}
+        isFullscreen={isFullscreen}
+        onOpenDownloadModal={() => setShowDownloadModal(true)}
+        onExport={handleExport}
+        copiedExport={copiedExport}
+      />
 
-          {/* Sidebar Toggle button on desktop */}
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`hidden md:flex w-8 h-8 rounded-full items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90 ${
-              isSidebarOpen 
-                ? 'bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 soft-shadow' 
-                : 'bg-gray-100 dark:bg-[#21262d] text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-white border border-gray-200/40 dark:border-transparent'
-            }`}
-            title="Toggle Sidebar (Outline & Markdown)"
-          >
-            <BookOpen className="w-4 h-4" />
-          </button>
-          
-          {/* Logo only on mobile */}
-          <div className="flex sm:hidden items-center gap-2">
-            <div className="w-5 h-5 bg-[#7485b6] rounded-full flex items-center justify-center text-white">
-              <FileText className="w-3 h-3" />
-            </div>
-            <h1 className="text-base font-bold tracking-tight text-gray-800 dark:text-gray-200">Make.md</h1>
-          </div>
-        </div>
-        
-        {/* Mobile / Tablet Single Toggle Button - Context aware */}
-        <div className={`flex md:hidden absolute left-1/2 -translate-x-1/2 top-[72px] z-40 transition-all duration-300 ${
-          isFullscreen ? 'opacity-0 pointer-events-none scale-95 translate-y-2' : 'opacity-100'
-        }`}>
-          {activeTab === 'editor' ? (
-            <button 
-              className="bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 px-4 h-8 rounded-full font-semibold text-xs soft-shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 hover:-translate-y-0.5"
-              onClick={() => setActiveTab('preview')}
-            >
-              <Eye className="w-3.5 h-3.5" /> Preview Mode
-            </button>
-          ) : (
-            <button 
-              className="bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 px-4 h-8 rounded-full font-semibold text-xs soft-shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 hover:-translate-y-0.5"
-              onClick={() => setActiveTab('editor')}
-            >
-              <FileEdit className="w-3.5 h-3.5" /> Editor Mode
-            </button>
-          )}
-        </div>
-
-        {/* Layout controls on desktop */}
-        <div className="hidden md:flex items-center gap-2">
-          <button 
-            onClick={() => setLayout('split')}
-            className={`h-8 px-4 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 hover:scale-105 active:scale-95 ${layout === 'split' ? 'bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100' : 'bg-gray-100 dark:bg-[#21262d] text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-white'}`}
-          >
-            <Layout className="w-3.5 h-3.5" /> Split
-          </button>
-          <button 
-            onClick={() => setLayout('preview')}
-            className={`h-8 px-4 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 hover:scale-105 active:scale-95 ${layout === 'preview' ? 'bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100' : 'bg-gray-100 dark:bg-[#21262d] text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-white'}`}
-          >
-            <Eye className="w-3.5 h-3.5" /> Preview
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3 sm:gap-4">
-          <button
-            onClick={onToggleTheme}
-            className="w-8 h-8 bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 rounded-full flex items-center justify-center soft-shadow transition-all duration-300 hover:scale-110 active:scale-90 hover:shadow-md hover:-translate-y-0.5"
-            title="Toggle Dark Mode"
-          >
-            {isDarkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* Mobile Download Button */}
-          <button
-            onClick={() => setShowDownloadModal(true)}
-            className="sm:hidden w-8 h-8 bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 rounded-full flex items-center justify-center soft-shadow transition-all duration-300 hover:scale-110 active:scale-90 hover:shadow-md"
-          >
-            <Download className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Desktop Save & Export Dropdown */}
-          <div className="hidden sm:flex items-center gap-2 relative">
-            <div className="h-8 flex items-center bg-white dark:bg-[#161b22] rounded-full px-3 soft-shadow-sm border border-gray-100 dark:border-[#21262d]">
-              <input 
-                type="text" 
-                value={filename}
-                onChange={(e) => setFilename(e.target.value)}
-                placeholder="Filename"
-                className="bg-transparent border-none outline-none text-xs font-medium text-gray-700 dark:text-gray-300 w-20 sm:w-24"
-              />
-              <span className="text-gray-400 text-xs font-medium">.md</span>
-            </div>
-            
-            <div className="relative">
-              <button 
-                onClick={() => setShowExportDropdown(!showExportDropdown)}
-                className="h-8 px-4 rounded-full bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 flex items-center gap-1.5 text-xs font-medium transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-md hover:-translate-y-0.5"
-              >
-                <Download className="w-3 h-3" />
-                <span>Export</span>
-                <ChevronDown className="w-3 h-3 ml-0.5 opacity-80" />
-              </button>
-
-              {showExportDropdown && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowExportDropdown(false)} />
-                  <div className="absolute top-10 right-0 w-48 bg-white dark:bg-[#161b22] rounded-2xl soft-shadow-lg border border-gray-100 dark:border-[#21262d] py-2 z-50 overflow-hidden animate-fade-in-up">
-                    <button 
-                      onClick={() => handleExport('md')}
-                      className="w-full text-left px-4 py-2.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors flex items-center gap-2"
-                    >
-                      <FileText className="w-3.5 h-3.5" /> Export Markdown (.md)
-                    </button>
-                    <button 
-                      onClick={() => handleExport('html')}
-                      className="w-full text-left px-4 py-2.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors flex items-center gap-2"
-                    >
-                      <FileCode className="w-3.5 h-3.5" /> Export HTML (.html)
-                    </button>
-                    <button 
-                      onClick={() => handleExport('copy-html')}
-                      className="w-full text-left px-4 py-2.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors flex items-center gap-2 justify-between"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Copy className="w-3.5 h-3.5" /> Copy HTML Render
-                      </span>
-                      {copiedExport && <Check className="w-3 h-3 text-green-500" />}
-                    </button>
-                    <button 
-                      onClick={() => handleExport('print')}
-                      className="w-full text-left px-4 py-2.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white font-medium transition-colors flex items-center gap-2"
-                    >
-                      <Printer className="w-3.5 h-3.5" /> Print / Export PDF
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-            {/* Main Content */}
+      {/* Main Content */}
       <main className="flex-1 flex overflow-hidden p-2 md:p-3 lg:p-4 pt-0 gap-2 lg:gap-4 max-w-[1600px] mx-auto w-full relative justify-center">
-        {/* Left Sidebar (Outline / Cheat Sheet) - Floats over the layout to avoid dynamic resizing of the editor */}
-        {isSidebarOpen && !isFocusMode && !isFullscreen && (
-          <>
-            {/* Dimmed backdrop overlay for premium look & click-outside close */}
-            <div 
-              className="absolute inset-0 z-20 bg-black/10 dark:bg-black/35 backdrop-blur-[2px] print-hide transition-opacity duration-350" 
-              onClick={() => setIsSidebarOpen(false)} 
-            />
-            <div className="absolute left-0 top-0 bottom-0 w-72 z-30 bg-white dark:bg-[#161b22] rounded-r-[32px] soft-shadow-xl flex flex-col overflow-hidden border-r border-gray-100 dark:border-[#21262d] animate-slide-in-left print-hide">
-              {/* Sidebar Tabs & Close Button */}
-              <div className="h-14 border-b border-gray-100 dark:border-[#21262d] flex items-center justify-between px-4 gap-2.5 flex-shrink-0">
-                <div className="flex bg-gray-100 dark:bg-[#21262d] p-1 rounded-full flex-1">
-                  <button
-                    onClick={() => setSidebarTab('outline')}
-                    className={`flex-1 py-1 text-center rounded-full text-xs font-bold tracking-wide transition-all duration-350 ${
-                      sidebarTab === 'outline'
-                        ? 'bg-white dark:bg-[#161b22] text-[#111] dark:text-white soft-shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-white'
-                    }`}
-                  >
-                    Outline
-                  </button>
-                  <button
-                    onClick={() => setSidebarTab('cheatsheet')}
-                    className={`flex-1 py-1 text-center rounded-full text-xs font-bold tracking-wide transition-all duration-350 ${
-                      sidebarTab === 'cheatsheet'
-                        ? 'bg-white dark:bg-[#161b22] text-[#111] dark:text-white soft-shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-white'
-                    }`}
-                  >
-                    Reference
-                  </button>
-                </div>
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-250 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 active:scale-95 flex-shrink-0"
-                  title="Close Sidebar"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Sidebar Content */}
-              <div className="flex-1 overflow-y-auto p-4 scrollbar-none" data-lenis-prevent="true">
-                {sidebarTab === 'outline' ? (
-                  <div className="space-y-3">
-                    <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1.5">
-                      <BookOpen className="w-3.5 h-3.5 text-[#7485b6]" /> Table of Contents
-                    </div>
-                    {headers.length === 0 ? (
-                      <p className="text-xs text-gray-400 dark:text-gray-500 italic text-center py-8">
-                        Add headings (e.g. # Hello) to see the outline.
-                      </p>
-                    ) : (
-                      <div className="space-y-0.5">
-                        {headers.map((h, i) => {
-                          const indentPadding = [
-                            'pl-0 font-bold text-gray-800 dark:text-gray-200 text-xs',
-                            'pl-3 border-l border-gray-200 dark:border-gray-800 ml-1.5 text-gray-600 dark:text-gray-450 text-xs',
-                            'pl-6 border-l border-gray-200 dark:border-gray-800 ml-1.5 text-gray-500 dark:text-gray-500 text-[11px]',
-                            'pl-9 border-l border-gray-200 dark:border-gray-800 ml-1.5 text-gray-450 dark:text-gray-600 text-[11px]',
-                            'pl-12 border-l border-gray-200 dark:border-gray-800 ml-1.5 text-gray-400 dark:text-gray-650 text-[10px]',
-                            'pl-14 border-l border-gray-200 dark:border-gray-800 ml-1.5 text-gray-400 dark:text-gray-650 text-[10px]'
-                          ];
-                          const cls = indentPadding[Math.min(h.level - 1, 5)];
-                          return (
-                            <div key={i} className="py-0.5">
-                              <button
-                                onClick={() => {
-                                  handleHeaderClick(h.text, h.lineIndex);
-                                  if (window.innerWidth < 768) setIsSidebarOpen(false);
-                                }}
-                                className={`w-full text-left py-1 hover:text-[#7485b6] dark:hover:text-white hover:bg-[#fcf7e6] dark:hover:bg-gray-800 rounded-lg px-2 transition-all duration-200 block truncate ${cls}`}
-                                title={h.text}
-                              >
-                                <span className="opacity-45 mr-1 text-[10px] font-semibold text-[#7485b6]">{'#'.repeat(h.level)}</span>
-                                {h.text}
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mb-2 flex items-center gap-1.5">
-                      <HelpCircle className="w-3.5 h-3.5 text-[#7485b6]" /> MD Quick Reference
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { name: 'Heading', syntax: '# title', type: 'heading', icon: 'H' },
-                        { name: 'Bold', syntax: '**bold**', type: 'bold', icon: 'B' },
-                        { name: 'Italic', syntax: '*italic*', type: 'italic', icon: 'I' },
-                        { name: 'Link', syntax: '[text](url)', type: 'link', icon: '🔗' },
-                        { name: 'Code Block', syntax: '```code```', type: 'code-block', icon: '💻' },
-                        { name: 'Blockquote', syntax: '> quote', type: 'blockquote', icon: '“' },
-                        { name: 'Bullet List', syntax: '- bullet', type: 'list-bullet', icon: '•' },
-                        { name: 'Todo List', syntax: '- [ ] task', type: 'list-todo', icon: '☑' },
-                        { name: 'Table', syntax: '| col | col |', type: 'table', icon: '田' },
-                        { name: 'Image', syntax: '![alt](url)', type: 'image', icon: '🖼' },
-                      ].map((item, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleCheatSheetClick(item.type)}
-                          className="text-left p-2.5 bg-gray-50 dark:bg-[#21262d]/40 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 border border-gray-100 dark:border-transparent rounded-2xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 hover:shadow-sm flex flex-col justify-between h-[68px]"
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">
-                              {item.name}
-                            </span>
-                            <span className="text-xs opacity-50 font-mono">
-                              {item.icon}
-                            </span>
-                          </div>
-                          <code className="text-[9px] text-gray-400 dark:text-gray-500 font-mono block truncate w-full mt-1.5">
-                            {item.syntax}
-                          </code>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
+        {/* Left Sidebar (Outline / Cheat Sheet) */}
+        <Sidebar
+          isSidebarOpen={isSidebarOpen}
+          isFocusMode={isFocusMode}
+          isFullscreen={isFullscreen}
+          onClose={() => setIsSidebarOpen(false)}
+          sidebarTab={sidebarTab}
+          onSetSidebarTab={setSidebarTab}
+          headers={headers}
+          onHeaderClick={handleHeaderClick}
+          onCheatSheetClick={handleCheatSheetClick}
+        />
 
         {/* Editor Panel */}
         <div 
@@ -1121,7 +890,7 @@ Rules:
                       </button>
 
                       {/* Templates Submenu */}
-                      <div className="h-[1px] bg-gray-105 dark:bg-[#21262d] my-1" />
+                      <div className="h-[1px] bg-gray-100 dark:bg-[#21262d] my-1" />
                       <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center gap-1">
                         <FileText className="w-3 h-3" /> Quick Templates
                       </div>
@@ -1151,7 +920,7 @@ Rules:
                       </div>
 
                       {/* Preferences */}
-                      <div className="h-[1px] bg-gray-105 dark:bg-[#21262d] my-1" />
+                      <div className="h-[1px] bg-gray-100 dark:bg-[#21262d] my-1" />
                       <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                         Preferences
                       </div>
@@ -1161,7 +930,7 @@ Rules:
                         className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 transition-colors"
                       >
                         <span className="flex items-center gap-2">
-                          <Sparkles className="w-3.5 h-3.5" />
+                          <Keyboard className="w-3.5 h-3.5" />
                           Focus Mode
                         </span>
                         <span className={`w-1.5 h-1.5 rounded-full ${isFocusMode ? 'bg-[#7485b6]' : 'bg-transparent'}`} />
@@ -1183,7 +952,7 @@ Rules:
                         className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-[#fcf7e6] dark:hover:bg-gray-800 transition-colors"
                       >
                         <span className="flex items-center gap-2">
-                          <Maximize2 className="w-3.5 h-3.5" />
+                          <Keyboard className="w-3.5 h-3.5" />
                           Zen Mode
                         </span>
                         <span className={`w-1.5 h-1.5 rounded-full ${isFullscreen ? 'bg-[#7485b6]' : 'bg-transparent'}`} />
@@ -1206,92 +975,15 @@ Rules:
           </div>
 
           {/* Format Toolbar */}
-          <div className="px-4 md:px-6 py-2 border-b border-gray-100 dark:border-[#21262d] bg-[#fbfbfa]/60 dark:bg-[#161b22]/60 flex items-center gap-1 overflow-x-auto flex-shrink-0 scrollbar-none">
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
-                canUndo 
-                  ? 'hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] hover:scale-110 active:scale-90' 
-                  : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-              }`}
-              title="Undo (Ctrl+Z)"
-            >
-              <Undo className="w-4 h-4" />
-            </button>
-            <button
-              onClick={redo}
-              disabled={!canRedo}
-              className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
-                canRedo 
-                  ? 'hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] hover:scale-110 active:scale-90' 
-                  : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-              }`}
-              title="Redo (Ctrl+Y)"
-            >
-              <Redo className="w-4 h-4" />
-            </button>
-            <div className="w-[1px] h-4 bg-gray-200 dark:bg-[#21262d] mx-1"></div>
-            <button
-              onClick={() => insertFormatting('bold')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
-              title="Bold"
-            >
-              <Bold className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => insertFormatting('italic')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
-              title="Italic"
-            >
-              <Italic className="w-4 h-4" />
-            </button>
-            <div className="w-[1px] h-4 bg-gray-200 dark:bg-[#21262d] mx-1"></div>
-            <button
-              onClick={() => insertFormatting('heading')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
-              title="Heading"
-            >
-              <Heading className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => insertFormatting('quote')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
-              title="Blockquote"
-            >
-              <Quote className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => insertFormatting('code')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
-              title="Code Block"
-            >
-              <Code className="w-4 h-4" />
-            </button>
-            <div className="w-[1px] h-4 bg-gray-200 dark:bg-[#21262d] mx-1"></div>
-            <button
-              onClick={() => insertFormatting('link')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
-              title="Link"
-            >
-              <Link className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => insertFormatting('bullet')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
-              title="Bullet List"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => insertFormatting('number')}
-              className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
-              title="Numbered List"
-            >
-              <ListOrdered className="w-4 h-4" />
-            </button>
-          </div>
+          <FormatToolbar
+            onUndo={undo}
+            onRedo={redo}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onInsertFormatting={insertFormatting}
+          />
 
+          {/* Editor Workspace */}
           <div ref={editorScrollRef} className="flex-1 overflow-y-auto" data-lenis-prevent="true">
             <Editor
               value={content}
@@ -1308,66 +1000,14 @@ Rules:
             />
           </div>
 
-          {/* Footer containing Stats & AI Formatter */}
-          <div className="h-12 border-t border-gray-100 dark:border-[#21262d] bg-[#fbfbfa]/65 dark:bg-[#161b22]/65 backdrop-blur-md px-4 flex items-center justify-between flex-shrink-0 z-10">
-            {/* Left: Statistics */}
-            <div className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 select-none">
-              <span>{stats.words} words</span>
-              <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
-              <span>{stats.chars} chars</span>
-              <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700" />
-              <span>{stats.readingTime} min read</span>
-            </div>
-
-            {/* Right: AI Format button */}
-            <div className="flex items-center gap-2">
-              {formatStatus === 'error' && (
-                <span className="text-[10px] text-red-500 font-semibold max-w-[150px] sm:max-w-[240px] truncate" title={formatError}>
-                  {formatError}
-                </span>
-              )}
-              {formatStatus === 'success' && (
-                <span className="text-[10px] text-green-500 font-semibold">
-                  Formatted!
-                </span>
-              )}
-              {formatStatus === 'cached' && (
-                <span className="text-[10px] text-green-500 font-semibold">
-                  Formatted! (cached)
-                </span>
-              )}
-              {formatStatus === 'already_formatted' && (
-                <span className="text-[10px] text-[#7485b6] dark:text-[#8b9bb4] font-semibold">
-                  Already formatted!
-                </span>
-              )}
-
-              <button
-                onClick={handleGrokFormat}
-                disabled={isFormatting}
-                className={`h-7 px-3.5 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 cursor-pointer ${
-                  isFormatting
-                    ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-550 cursor-wait'
-                    : formatStatus === 'success' || formatStatus === 'cached' || formatStatus === 'already_formatted'
-                    ? ''
-                    : formatStatus === 'error'
-                    ? ''
-                    : 'bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 soft-shadow-sm'
-                }`}
-                title="Format Markdown with Grok AI"
-              >
-                {isFormatting ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3 h-3" />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+          {/* Footer stats & AI Formatter */}
+          <EditorFooter
+            stats={stats}
+            formatStatus={formatStatus}
+            formatError={formatError}
+            isFormatting={isFormatting}
+            onFormat={handleGrokFormat}
+          />
         </div>
 
         {/* Preview Panel */}
@@ -1389,7 +1029,7 @@ Rules:
             {isFullscreen && (
               <button 
                 onClick={() => setIsFullscreen(false)}
-                className="px-3 py-1 text-xs font-semibold bg-gray-150 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-650 dark:text-gray-300 rounded-full transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1 text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full transition-all duration-200 active:scale-95 flex items-center gap-1.5 cursor-pointer"
               >
                 <Minimize2 className="w-3 h-3" /> Exit Zen
               </button>
@@ -1402,41 +1042,13 @@ Rules:
       </main>
 
       {/* Mobile Download Modal */}
-      {showDownloadModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 sm:hidden backdrop-blur-sm">
-          <div className="bg-white dark:bg-[#161b22] w-full max-w-sm rounded-[24px] p-6 soft-shadow-lg border border-gray-100 dark:border-[#21262d]">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Save Markdown File</h3>
-            <div className="flex items-center bg-gray-50 dark:bg-[#0d1117] rounded-xl p-2 border border-gray-200 dark:border-[#30363d] mb-6">
-              <input 
-                type="text" 
-                value={filename}
-                onChange={(e) => setFilename(e.target.value)}
-                placeholder="Filename"
-                className="bg-transparent border-none outline-none px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 w-full"
-                autoFocus
-              />
-              <span className="text-gray-400 text-sm font-medium pr-3">.md</span>
-            </div>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowDownloadModal(false)}
-                className="flex-1 h-8 rounded-full text-xs font-semibold bg-gray-100 dark:bg-[#21262d] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex items-center justify-center"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => {
-                  handleDownload();
-                  setShowDownloadModal(false);
-                }}
-                className="flex-1 h-8 rounded-full text-xs font-semibold bg-[#111] dark:bg-white text-white dark:text-[#111] hover:bg-black dark:hover:bg-gray-100 transition-all flex items-center justify-center"
-              >
-                Download
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <MobileDownloadModal
+        isOpen={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+        filename={filename}
+        onChangeFilename={setFilename}
+        onDownload={handleDownload}
+      />
     </div>
   );
 }
