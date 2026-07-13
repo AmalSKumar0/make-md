@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowLeft, Download, Eye, FileEdit, Info, Upload, FileText, ChevronDown, Layout, Bold, Italic, Heading, Quote, Code, List, ListOrdered, Link, Maximize2, Minimize2, Moon, Sun, Copy, Printer, Check, HelpCircle, FileCode, Keyboard, Sparkles, BookOpen, Menu, X } from 'lucide-react';
+import { ArrowLeft, Download, Eye, FileEdit, Info, Upload, FileText, ChevronDown, Layout, Bold, Italic, Heading, Quote, Code, List, ListOrdered, Link, Maximize2, Minimize2, Moon, Sun, Copy, Printer, Check, HelpCircle, FileCode, Keyboard, Sparkles, BookOpen, Menu, X, Undo, Redo } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useUndoRedo } from '../hooks/useUndoRedo';
 import { useElementSmoothScroll } from '../hooks/useSmoothScroll';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -226,7 +227,16 @@ Use this dashboard to track milestones, tasks, and feature progress.
 };
 
 export default function EditorView({ onBack, isDarkMode, onToggleTheme }: EditorViewProps) {
-  const [content, setContent] = useLocalStorage<string>('makemd_editor_content', DEFAULT_MARKDOWN);
+  const [savedContent, setSavedContent] = useLocalStorage<string>('makemd_editor_content', DEFAULT_MARKDOWN);
+  const {
+    value: content,
+    setValue: setContent,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    resetHistory
+  } = useUndoRedo(savedContent, setSavedContent);
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor'); // For mobile
   const [layout, setLayout] = useLocalStorage<'split' | 'editor' | 'preview'>('makemd_editor_layout', 'split'); // For desktop
   const [filename, setFilename] = useLocalStorage<string>('makemd_editor_filename', 'untitled');
@@ -370,7 +380,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
     }
 
     const newContent = text.substring(0, start) + replacement + text.substring(end);
-    setContent(newContent);
+    setContent(newContent, true);
     setIsSidebarOpen(false);
 
     setTimeout(() => {
@@ -477,6 +487,27 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen]);
 
+  useEffect(() => {
+    const handleUndoRedoShortcuts = (e: KeyboardEvent) => {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      if (isCmdOrCtrl) {
+        if (e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) {
+            redo();
+          } else {
+            undo();
+          }
+        } else if (e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          redo();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleUndoRedoShortcuts);
+    return () => window.removeEventListener('keydown', handleUndoRedoShortcuts);
+  }, [undo, redo]);
+
   const insertFormatting = (type: 'bold' | 'italic' | 'link' | 'bullet' | 'number' | 'heading' | 'quote' | 'code') => {
     const textarea = editorContainerRef.current?.querySelector('textarea');
     if (!textarea) return;
@@ -538,7 +569,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
     }
 
     const newContent = text.substring(0, start) + replacement + text.substring(end);
-    setContent(newContent);
+    setContent(newContent, true);
 
     setTimeout(() => {
       textarea.focus();
@@ -563,7 +594,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      setContent(text);
+      resetHistory(text);
       const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
       setFilename(nameWithoutExt);
     };
@@ -587,7 +618,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target?.result as string;
-        setContent(text);
+        resetHistory(text);
         const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
         setFilename(nameWithoutExt);
       };
@@ -966,7 +997,7 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
                           <button
                             key={t.key}
                             onClick={() => {
-                              setContent(TEMPLATES[t.key as keyof typeof TEMPLATES]);
+                              resetHistory(TEMPLATES[t.key as keyof typeof TEMPLATES]);
                               setFilename(t.filename);
                               setShowHamburgerMenu(false);
                             }}
@@ -1034,6 +1065,31 @@ export default function EditorView({ onBack, isDarkMode, onToggleTheme }: Editor
 
           {/* Format Toolbar */}
           <div className="px-4 md:px-6 py-2 border-b border-gray-100 dark:border-[#21262d] bg-[#fbfbfa]/60 dark:bg-[#161b22]/60 flex items-center gap-1 overflow-x-auto flex-shrink-0 scrollbar-none">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                canUndo 
+                  ? 'hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] hover:scale-110 active:scale-90' 
+                  : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+              }`}
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo className="w-4 h-4" />
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                canRedo 
+                  ? 'hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] hover:scale-110 active:scale-90' 
+                  : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+              }`}
+              title="Redo (Ctrl+Y)"
+            >
+              <Redo className="w-4 h-4" />
+            </button>
+            <div className="w-[1px] h-4 bg-gray-200 dark:bg-[#21262d] mx-1"></div>
             <button
               onClick={() => insertFormatting('bold')}
               className="p-2 hover:bg-[#7485b6]/10 text-gray-600 dark:text-gray-400 hover:text-[#7485b6] dark:hover:text-[#a5d6ff] rounded-lg transition-all duration-200 hover:scale-110 active:scale-90 flex items-center justify-center"
